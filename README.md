@@ -4,7 +4,8 @@
 
 ### ▶ Try it now: https://pnachify.vercel.app
 
-[![Watch the 28-second promo](media/promo-poster.jpg)](media/promo.mp4)
+https://github.com/user-attachments/assets/f0e85497-6dd1-4410-9027-8343798bd8b5
+<sub>28 seconds, no sound.</sub>
 
 Click the preview to watch the promo (1080×1920, 60 fps).
 
