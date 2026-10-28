@@ -4,6 +4,10 @@
 
 ### ▶ Try it now: https://pnachify.vercel.app
 
+[![Watch the 28-second promo](media/promo-poster.jpg)](media/promo.mp4)
+
+Click the preview to watch the promo (1080×1920, 60 fps).
+
 You found a cheat on a forum. Your game lives on NetherSX2 on your phone. Getting that cheat into the emulator used to mean opening a laptop, finding a converter, converting, then copying files across.
 
 Pnachify deletes the laptop. Paste the codes, tap convert, share the file into your emulator's cheats folder.
