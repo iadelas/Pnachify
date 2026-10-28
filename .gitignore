@@ -33,3 +33,5 @@ coverage/
 # Environment files
 .env*.local
 .env
+
+video/
