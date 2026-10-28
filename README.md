@@ -5,9 +5,8 @@
 ### ▶ Try it now: https://pnachify.vercel.app
 
 https://github.com/user-attachments/assets/f0e85497-6dd1-4410-9027-8343798bd8b5
-<sub>28 seconds, no sound.</sub>
 
-Click the preview to watch the promo (1080×1920, 60 fps).
+<sub>28 seconds, no sound.</sub>
 
 You found a cheat on a forum. Your game lives on NetherSX2 on your phone. Getting that cheat into the emulator used to mean opening a laptop, finding a converter, converting, then copying files across.
 
