@@ -2,8 +2,9 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { mkdirSync, readFileSync } from "node:fs";
+import { createRequire } from "node:module";
 import path from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { fileURLToPath } from "node:url";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repo = path.resolve(here, "..");
@@ -37,11 +38,9 @@ const cases = [
   },
 ];
 
-const createOmniModule = (
-  await import(
-    pathToFileURL(path.join(repo, "web", "src", "lib", "generated", "omni.mjs")).href
-  )
-).default;
+const createOmniModule = createRequire(import.meta.url)(
+  path.join(repo, "web", "public", "omni.js"),
+);
 
 const wasm = await createOmniModule({
   locateFile: () => path.join(repo, "web", "public", "omni.wasm"),
@@ -102,3 +101,46 @@ for (const [index, item] of cases.entries()) {
 test("unknown input format reports an error instead of crashing", () => {
   assert.throws(() => convertWithWasm("00000000 00000001", "NOT_A_FORMAT", "PNACH"), /unknown input format/);
 });
+
+function convertAuto(text, output) {
+  const pointer = wasm.ccall(
+    "omni_convert_auto",
+    "number",
+    ["string", "string", "string", "string", "number"],
+    [text, output, "", "", 1],
+  );
+  if (!pointer) {
+    throw new Error(wasm.ccall("omni_last_error", "string", [], []));
+  }
+  const result = wasm.UTF8ToString(pointer);
+  wasm._omni_free(pointer);
+  return { text: result, format: wasm.ccall("omni_last_format", "string", [], []) };
+}
+
+const detectionCases = [
+  { file: "Arv1-Encrypted.txt", expected: ["AR1"] },
+  { file: "ARv2-Encrypted.txt", expected: ["AR2"] },
+  { file: "CB1-6[Encryption]-4 x 4 Evolution - SLUS_200.91.txt", expected: ["CB"] },
+  { file: "CB7+[Encryption]-187 Ride Or Die - SLUS_211.16.txt", expected: ["CB7_COMMON"] },
+  { file: "Xploderv5+[Encrypted]-4x4 Evo 2.txt", expected: ["GS5", "GS3"] },
+  { file: "Xploderv5+[Encrypted]-Catwoman.txt", expected: ["GS5", "GS3"] },
+  { file: "ARMAX[ENCRYPTED]-.hack__G.U. Vol 1_ Rebirth.txt", expected: ["ARMAX"] },
+];
+
+for (const item of detectionCases) {
+  test(`auto-detect finds ${item.expected.join(" or ")} in ${item.file}`, () => {
+    const source = readFileSync(path.join(vectors, item.file), "utf8");
+    const detected = convertAuto(source, "PNACH");
+    assert.ok(
+      item.expected.includes(detected.format),
+      `detected ${detected.format}, expected one of ${item.expected.join(", ")}`,
+    );
+    assert.equal(detected.text, convertWithWasm(source, detected.format, "PNACH"));
+  });
+}
+
+test("auto-detect falls back to RAW for unlabelled raw codes", () => {
+  const detected = convertAuto("Max Money\n20000000 00000001\n", "PNACH");
+  assert.match(detected.text, /patch=1,EE,20000000,extended,00000001/);
+});
+

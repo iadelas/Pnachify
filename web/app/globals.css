@@ -1,0 +1,23 @@
+@import "tailwindcss";
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body {
+  min-height: 100%;
+}
+
+body {
+  background:
+    radial-gradient(1200px 600px at 50% -10%, rgb(30 41 59 / 0.55), transparent 70%),
+    #0a0a0a;
+}
+
+textarea,
+input,
+select,
+button {
+  font: inherit;
+}

@@ -11,7 +11,7 @@ Everything runs in the user's browser. There is no backend, no conversion API, a
 | Path | Contents |
 |---|---|
 | `core/` | C++ converter, copied from upstream OmniConvertCS. Builds natively for tests and to WASM. |
-| `wasm/` | Thin C wrapper plus the emscripten build script. Emits `web/public/omni.wasm` and its JS glue. |
+| `wasm/` | Thin C wrapper plus the emscripten build script. Emits `web/public/omni.wasm` and its loader `web/public/omni.js`. |
 | `web/` | Next.js App Router app (TypeScript, Tailwind). The only thing Vercel builds. |
 | `tests/` | Node test runner: WASM-vs-CLI parity, round-trip property tests, real-corpus tests. |
 | `web/e2e/` | Playwright tests in a mobile viewport. |
@@ -117,6 +117,7 @@ Once per release, on a real Android phone: paste one real game's codes, convert,
 - Tailwind utility classes, no CSS files unless a utility cannot express the rule.
 - The C wrapper exposes a plain C ABI: no C++ exceptions across the boundary, errors returned as strings.
 - Use the vocabulary in `GLOSSARY.md`. Code format names and crypt names must match it exactly.
+- The emscripten glue is never imported by Next.js. It is loaded at runtime as a script from `/omni.js`; bundling it breaks Turbopack and webpack.
 - One new dependency only when the standard library or an existing dependency genuinely cannot do the job.
 
 ## Build and deployment
