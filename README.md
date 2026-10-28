@@ -1,20 +1,36 @@
 # Pnachify
 
-Turn PS2 cheat codes into a `.pnach` file, in your phone browser.
+**Turn PS2 cheat codes into a `.pnach` file, on your phone, in about ten seconds.**
 
-Pnachify is a web version of [OmniConvertCS](https://github.com/SkillerCMP/OmniConvertCS). Paste a cheat list from a forum, a cheat site, or a device export; pick the game; get a PNACH file ready for PCSX2 and its Android forks (NetherSX2, AetherSX2). No install, no laptop, no file transfer to your phone.
+### ▶ Try it now: https://pnachify.vercel.app
 
-Everything runs in your browser. Cheat codes are never uploaded.
+You found a cheat on a forum. Your game lives on NetherSX2 on your phone. Getting that cheat into the emulator used to mean opening a laptop, finding a converter, converting, then copying files across.
 
-## Features
+Pnachify deletes the laptop. Paste the codes, tap convert, share the file into your emulator's cheats folder.
 
-- **Auto-detects the code format** — CodeBreaker, GameShark / Xploder, Action Replay, ARMAX and the RAW variants. A manual picker appears if detection fails.
-- **PNACH output** with a real `gametitle=` line, one `[Section]` per cheat, and failed codes marked inside the file.
-- **Phone-first** — paste, convert, then Download or Share straight to a file manager.
-- **CRC-named downloads** — enter the game CRC and the file is saved as `0891B1D0.pnach`, ready for the emulator's cheats folder.
-- **Works offline after first load** — the converter is a single WASM file cached by the browser.
+Everything runs in your browser. Your codes are never uploaded, and after the first visit the app works offline.
 
-## Quick start
+## What you get
+
+- **Any common cheat format** — CodeBreaker, GameShark / Xploder, Action Replay, ARMAX, RAW variants. The format is detected automatically; a picker appears if it isn't sure.
+- **A real PNACH file** — `gametitle=` line, one section per cheat, and any codes that failed are marked inside the file instead of silently dropped.
+- **A file the emulator accepts** — enter the game CRC and it downloads as `0891B1D0.pnach`, named exactly how PCSX2 and NetherSX2 expect.
+- **Phone-native delivery** — Copy, Download, or Share straight to a file manager.
+
+## Under the hood
+
+The original C++ converter, compiled to WebAssembly, running client-side. No server, no accounts, no telemetry. The site is static files plus a single `.wasm` asset.
+
+| Path | What it holds |
+|---|---|
+| `core/` | C++ converter from [OmniConvertCS](https://github.com/SkillerCMP/OmniConvertCS) |
+| `wasm/` | C wrapper and emscripten build script |
+| `web/` | Next.js app, the only part Vercel builds |
+| `tests/` | WASM-versus-native parity and format-detection tests |
+
+Why WebAssembly and not a rewrite? See `docs/adr/`.
+
+## Run it locally
 
 ```bash
 cd web
@@ -22,64 +38,26 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:3000.
+Open http://localhost:3000. Your phone can use the printed network URL on the same Wi-Fi.
 
-Your phone can use the network URL printed by Next.js while it is on the same Wi-Fi.
-
-## How it works
-
-| Path | What it holds |
-|---|---|
-| `core/` | The C++ converter from OmniConvertCS. Crypto, parsers, code transposition. |
-| `wasm/` | A small C wrapper and the emscripten build script. Produces `web/public/omni.wasm`. |
-| `web/` | The Next.js app (App Router, TypeScript, Tailwind). The only part Vercel builds. |
-| `tests/` | WASM-versus-native parity tests, round trips and format detection tests. |
-| `web/e2e/` | Playwright tests in a phone viewport. |
-
-The C++ core is compiled to WebAssembly and called from the browser. There is no backend: the site is static files plus one `.wasm` asset, so conversion is instant and private, and hosting is free.
-
-## Supported formats
-
-Input (auto-detected or chosen manually): RAW, MAXRAW, ARAW, CRAW, GS12RAW, GRAW, AR1, AR2, ARMAX, CB, CB7_COMMON, GS3, GS5, SMC, XP13, XP4, XP5, PNACH.
-
-Output: PNACH only, by design. See `docs/adr/` for the reasoning.
-
-## Testing
+## Tests
 
 ```bash
-# Native converter tests (test oracle)
-cmake -S core -B build -DOMNI_BUILD_GUI=OFF -DOMNI_BUILD_TESTS=ON -DOMNI_BUILD_CLI=ON
-cmake --build build --config Release
-ctest --test-dir build -C Release --output-on-failure
-
-# WASM parity, round trips and detection (repo root)
-node --test tests/
-
-# UI tests
-cd web
-npx playwright test
+ctest --test-dir build -C Release --output-on-failure   # native converter
+node --test tests/                                      # WASM parity + detection
+cd web && npx playwright test                           # phone-viewport UI
 ```
 
-The parity suite converts every upstream test vector through both the native CLI and the WASM build and requires identical bytes. If you change `core/` or `wasm/`, rebuild the artifact and rerun it:
-
-```bash
-wasm\build.cmd
-```
-
-Rebuilding requires [emsdk](https://emscripten.org/docs/getting_started/downloads.html); running the site does not.
-
-## Deployment
-
-Static hosting. On Vercel, set the project root directory to `web/` and deploy. The committed `omni.wasm` means the build needs no C++ toolchain.
+The parity suite requires byte-identical output between the native converter and the WASM build for every upstream test vector. Changing `core/` or `wasm/`? Rebuild the artifact with `wasm\build.cmd` (needs [emsdk](https://emscripten.org/docs/getting_started/downloads.html)).
 
 ## Known limits
 
-- Untagged encrypted code lists can be guessed wrong. Use the manual format picker.
-- The Share button uses the Android share sheet; Download always works.
-- CRC lookup by game name is not built in yet. The CRC is shown in the emulator's game list.
+- Untagged encrypted lists can be guessed wrong — the manual picker is there for that.
+- Share uses the Android share sheet; Download always works.
+- No game-name-to-CRC lookup yet. The CRC is shown in the emulator's game list.
 
 ## Credits and license
 
-Pnachify is built on [OmniConvertCS](https://github.com/SkillerCMP/OmniConvertCS) by SkillerCMP, which is a C++ rewrite of Pyriel's OmniConvert. Both projects deserve the credit for the conversion logic, format knowledge and test vectors.
+Built on [OmniConvertCS](https://github.com/SkillerCMP/OmniConvertCS) by SkillerCMP, itself a rewrite of Pyriel's OmniConvert. The conversion logic, format knowledge and test vectors are theirs; this project is the phone-shaped front door.
 
 Licensed under the GNU General Public License v2.0. See [LICENSE](LICENSE).
