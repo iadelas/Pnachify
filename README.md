@@ -17,7 +17,7 @@ Everything runs in your browser. Your codes are never uploaded, and after the fi
 ## What you get
 
 - **Any common cheat format** — CodeBreaker, GameShark / Xploder, Action Replay, ARMAX, RAW variants. The format is detected automatically; a picker appears if it isn't sure.
-- **A real PNACH file** — `gametitle=` line, one section per cheat, and any codes that failed are marked inside the file instead of silently dropped.
+- **A real PNACH file** — `gametitle=` line, one section per cheat, and any codes that failed are marked inside the file instead of silently dropped. Device-only master (enable) codes are removed, with a note saying so.
 - **A file the emulator accepts** — enter the game CRC and it downloads as `0891B1D0.pnach`, named exactly how PCSX2 and NetherSX2 expect.
 - **Phone-native delivery** — Copy, Download, or Share straight to a file manager.
 

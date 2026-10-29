@@ -5,6 +5,7 @@ import {
   convertFrom,
   countFailedCodes,
   detectAndConvert,
+  dropMasterCodes,
   hasPatchLines,
   loadOmni,
   outputFormats,
@@ -18,7 +19,15 @@ const crcKey = "pnachify.crc";
 type Result = {
   text: string;
   format: string;
+  notice: string | null;
 };
+
+function masterNotice(dropped: number): string | null {
+  if (dropped === 0) return null;
+  return dropped === 1
+    ? "Skipped the master (enable) code — the emulator does not need it."
+    : `Skipped ${dropped} master (enable) code sections — the emulator does not need them.`;
+}
 
 export function Converter() {
   const [codes, setCodes] = useState("");
@@ -50,8 +59,13 @@ export function Converter() {
       const converted = manualFormat
         ? convertFrom(module, codes, manualFormat, gameName, crc)
         : detectAndConvert(module, codes, gameName, crc);
-      const text = withGameTitle(converted.text, gameName);
-      setResult({ text, format: converted.format });
+      const masters = dropMasterCodes(converted.text);
+      const text = withGameTitle(masters.text, gameName);
+      setResult({
+        text,
+        format: converted.format,
+        notice: masterNotice(masters.dropped),
+      });
       setShowFormatPicker(!hasPatchLines(text));
       localStorage.setItem(gameNameKey, gameName);
       localStorage.setItem(crcKey, crc);
@@ -209,6 +223,10 @@ export function Converter() {
               Detected: {result.format}
             </span>
           </div>
+
+          {result.notice && (
+            <p className="mt-2 text-xs text-neutral-400">{result.notice}</p>
+          )}
 
           {failed > 0 && (
             <p className="mt-2 rounded-lg border border-amber-900 bg-amber-950/50 px-3 py-2 text-sm text-amber-300">

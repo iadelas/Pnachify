@@ -38,6 +38,10 @@ _Avoid_: cheat cartridge, device type
 The cipher a cheat device applies to its code list. Each supported cheat device has one, and some devices have several versions.
 _Avoid_: encryption, encoding, cipher type
 
+**Master code**:
+A code a cheat device needs before it will run the rest of the list, also called an enable code. An emulator has no cartridge to unlock, so it is dropped from a PNACH file.
+_Avoid_: key code, must-be-on code, boot code
+
 **Transpose**:
 Rewrite a code list from one cheat device's meaning to another's, so that code types such as pointers still behave the same.
 _Avoid_: convert, translate

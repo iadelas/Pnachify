@@ -21,6 +21,19 @@ test("converts pasted raw codes to a CRC-named pnach", async ({ page }) => {
   expect(download.suggestedFilename()).toBe("0891B1D0.pnach");
 });
 
+test("drops master codes and says so", async ({ page }) => {
+  await page.goto("/");
+  await page
+    .getByRole("textbox", { name: "Cheat codes" })
+    .fill("Masters\n90123456 0C078881\nMax Money\n20000000 00000001");
+  await page.getByRole("button", { name: "Convert to PNACH" }).click();
+
+  const output = page.locator("textarea[readonly]");
+  await expect(output).toContainText("patch=1,EE,20000000,extended,00000001");
+  await expect(output).not.toContainText("90123456");
+  await expect(page.getByText(/Skipped the master/)).toBeVisible();
+});
+
 test("shows the manual format picker when nothing converts", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("textbox", { name: "Cheat codes" }).fill("hello");

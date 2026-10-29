@@ -134,6 +134,42 @@ export function countFailedCodes(text: string): number {
   return text.split("\n").filter((line) => line.startsWith("// [ERROR]")).length;
 }
 
+const masterCodeTypes = new Set(["9", "F"]);
+
+function hasMasterLine(section: string[]): boolean {
+  return section.some((line) => {
+    if (!line.startsWith("patch=")) return false;
+    const address = line.split(",")[2] ?? "";
+    return masterCodeTypes.has((address[0] ?? "").toUpperCase());
+  });
+}
+
+export function dropMasterCodes(text: string): { text: string; dropped: number } {
+  const kept: string[] = [];
+  let section: string[] = [];
+  let dropped = 0;
+
+  for (const line of text.split("\n")) {
+    if (line.startsWith("[")) {
+      if (section.length > 0) {
+        if (hasMasterLine(section)) dropped += 1;
+        else kept.push(...section);
+      }
+      section = [line];
+      continue;
+    }
+    if (section.length > 0) section.push(line);
+    else kept.push(line);
+  }
+
+  if (section.length > 0) {
+    if (hasMasterLine(section)) dropped += 1;
+    else kept.push(...section);
+  }
+
+  return { text: kept.join("\n"), dropped };
+}
+
 export function hasPatchLines(text: string): boolean {
   return text.split("\n").some((line) => line.startsWith("patch="));
 }
