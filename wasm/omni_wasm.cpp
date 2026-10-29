@@ -46,6 +46,21 @@ struct Candidate {
     std::size_t total;
 };
 
+bool is_master_word(std::uint32_t word) noexcept {
+    const std::uint32_t type = word >> 28U;
+    if (type == 0x9U || type == 0xFU) return true;
+    const std::uint32_t addr = word & 0x0FFFFFFFU;
+    return addr == 0x000FFFFEU || addr == 0x000FFFFFU;
+}
+
+bool is_master_block(const omni::formats::text::CheatBlock& block) noexcept {
+    if (block.cheat.word_count() < 2U) return false;
+    for (std::size_t index = 0; index < block.cheat.word_count(); index += 2U) {
+        if (!is_master_word(block.cheat.words[index])) return false;
+    }
+    return true;
+}
+
 std::optional<Candidate> try_candidate(std::string_view text, omni::CodeFormat input,
                                        omni::CodeFormat output) {
     try {
@@ -53,13 +68,19 @@ std::optional<Candidate> try_candidate(std::string_view text, omni::CodeFormat i
         request.transpose_mode = omni::translate::TransposeMode::original;
         request.continue_on_error = true;
         const omni::convert::Result result = omni::convert::convert_text(text, request);
-        if (result.blocks.empty()) return std::nullopt;
 
         std::size_t valid = 0;
+        std::size_t scored = 0;
         for (const omni::formats::text::CheatBlock& block : result.blocks) {
+            if (block.conversion_error || block.cheat.word_count() == 0U ||
+                is_master_block(block)) {
+                continue;
+            }
+            ++scored;
             if (omni::analysis::validate_raw_plausibility(block.cheat).valid) ++valid;
         }
-        return Candidate{input, valid, result.blocks.size()};
+        if (scored == 0U) return std::nullopt;
+        return Candidate{input, valid, scored};
     } catch (...) {
         return std::nullopt;
     }
@@ -85,43 +106,66 @@ std::optional<std::string_view> first_crypt_tag(std::string_view text) {
     return text.substr(at + 6U, end - at - 6U);
 }
 
+bool is_complete(const Candidate& candidate) noexcept {
+    return candidate.valid > 0U && candidate.valid == candidate.total;
+}
+
+omni::CodeFormat raw_format_for(omni::Crypt crypt) {
+    switch (crypt) {
+        case omni::Crypt::armax: return omni::CodeFormat::armax_raw;
+        case omni::Crypt::ar1:
+        case omni::Crypt::ar2: return omni::CodeFormat::ar12_raw;
+        case omni::Crypt::codebreaker:
+        case omni::Crypt::codebreaker7_common: return omni::CodeFormat::codebreaker_raw;
+        case omni::Crypt::gameshark3:
+        case omni::Crypt::gameshark5: return omni::CodeFormat::gameshark3_raw;
+        case omni::Crypt::max_raw: return omni::CodeFormat::armax_raw;
+        case omni::Crypt::raw: return omni::CodeFormat::standard_raw;
+        case omni::Crypt::ar2_raw: return omni::CodeFormat::ar12_raw;
+        case omni::Crypt::codebreaker_raw: return omni::CodeFormat::codebreaker_raw;
+        case omni::Crypt::gameshark_raw: return omni::CodeFormat::gameshark3_raw;
+    }
+    return omni::CodeFormat::standard_raw;
+}
+
 std::optional<omni::CodeFormat> detect_format(std::string_view text,
                                               omni::CodeFormat output) {
     if (const auto tag = first_crypt_tag(text)) {
         if (const auto crypt = omni::parse_crypt(*tag)) {
             const omni::CodeFormat format = format_for(*crypt);
-            if (try_candidate(text, omni::CodeFormat::inline_headers, output)) {
+            const auto tagged = try_candidate(text, omni::CodeFormat::inline_headers, output);
+            if (tagged && is_complete(*tagged)) {
                 last_format = std::string(omni::code_format_token(format));
                 return omni::CodeFormat::inline_headers;
             }
+
+            const omni::CodeFormat raw_format = raw_format_for(*crypt);
+            const auto untagged = try_candidate(text, raw_format, output);
+            if (untagged && is_complete(*untagged)) {
+                last_format = std::string(omni::code_format_token(raw_format));
+                return raw_format;
+            }
+
+            last_format = "RAW";
+            return omni::CodeFormat::standard_raw;
         }
     }
 
-    if (const auto raw = try_candidate(text, omni::CodeFormat::standard_raw, output);
-        raw && raw->valid == raw->total) {
+    const auto raw = try_candidate(text, omni::CodeFormat::standard_raw, output);
+    if (raw && is_complete(*raw)) {
         last_format = "RAW";
         return omni::CodeFormat::standard_raw;
     }
 
-    std::optional<Candidate> best;
     for (omni::Crypt candidate : encrypted_candidates) {
         const auto attempt = try_candidate(text, format_for(candidate), output);
-        if (!attempt || attempt->valid == 0U) continue;
-        if (attempt->valid == attempt->total) {
-            last_format = std::string(omni::code_format_token(attempt->format));
-            return attempt->format;
-        }
-        if (best == std::nullopt ||
-            attempt->valid * best->total > best->valid * attempt->total) {
-            best = attempt;
-        }
+        if (!attempt || !is_complete(*attempt)) continue;
+        last_format = std::string(omni::code_format_token(attempt->format));
+        return attempt->format;
     }
 
-    if (best) {
-        last_format = std::string(omni::code_format_token(best->format));
-        return best->format;
-    }
-    return std::nullopt;
+    last_format = "RAW";
+    return omni::CodeFormat::standard_raw;
 }
 
 char* convert_impl(std::string_view input_text, omni::CodeFormat input,
@@ -211,14 +255,7 @@ char* omni_convert_auto(const char* input_text,
             return nullptr;
         }
         const auto detected = detect_format(text_or_empty(input_text), *output);
-        if (detected) {
-            return convert_impl(text_or_empty(input_text), *detected, *output,
-                                text_or_empty(game_name), text_or_empty(crc_hex),
-                                continue_on_error != 0);
-        }
-        last_format = "RAW";
-        last_error.clear();
-        return convert_impl(text_or_empty(input_text), omni::CodeFormat::standard_raw, *output,
+        return convert_impl(text_or_empty(input_text), *detected, *output,
                             text_or_empty(game_name), text_or_empty(crc_hex),
                             continue_on_error != 0);
     } catch (const std::exception& error) {

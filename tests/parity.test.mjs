@@ -144,3 +144,41 @@ test("auto-detect falls back to RAW for unlabelled raw codes", () => {
   assert.match(detected.text, /patch=1,EE,20000000,extended,00000001/);
 });
 
+const decryptedCases = [
+  { file: "CB1-6[Decryption]-4 x 4 Evolution - SLUS_200.91.txt", format: "CRAW" },
+  { file: "CB7+[Decryption]-187 Ride Or Die - SLUS_211.16.txt", format: "CRAW" },
+  { file: "ARMAX[DECRYPTED-Armax(RAW)]-.hack__G.U. Vol 1_ Rebirth - Copy.txt", format: "MAXRAW" },
+  { file: "Arv1-Decrypted.txt", format: "RAW" },
+  { file: "ARv2-Decrypted.txt", format: "ARAW" },
+  { file: "Xploderv5+[Decrypted]-4x4 Evo 2.txt", format: "RAW" },
+  { file: "Xploderv5+[Decrypted]-Catwoman - Copy.txt", format: "GS3" },
+];
+
+for (const item of decryptedCases) {
+  test(`does not re-scramble already decrypted ${item.file}`, () => {
+    const source = readFileSync(path.join(vectors, item.file), "utf8");
+    const detected = convertAuto(source, "PNACH");
+    assert.equal(detected.format, item.format);
+    assert.equal(detected.text, convertWithWasm(source, item.format, "PNACH"));
+  });
+}
+
+test("does not re-scramble a decrypted CodeBreaker list", () => {
+  const source = readFileSync(
+    path.join(vectors, "CB1-6[Decryption]-4 x 4 Evolution - SLUS_200.91.txt"),
+    "utf8",
+  );
+  const detected = convertAuto(source, "PNACH");
+  assert.match(detected.text, /patch=1,EE,208B235C,extended,FFFFFFFF/);
+  assert.match(detected.text, /patch=1,EE,203A6F7C,extended,41200000/);
+});
+
+test("auto-detect still finds a CB list with no CRYPT tag", () => {
+  const source = readFileSync(
+    path.join(vectors, "CB1-6[Encryption]-4 x 4 Evolution - SLUS_200.91.txt"),
+    "utf8",
+  ).replace(/,?\s*CRYPT_[A-Z0-9_]+/g, "");
+  const detected = convertAuto(source, "PNACH");
+  assert.equal(detected.format, "CB");
+});
+
